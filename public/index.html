@@ -3,127 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Studio Flux</title>
+    <title>AI Studio</title>
     <style>
-        body { background: #050505; color: #fff; font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; }
+        body { background: #0a0a0a; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding-bottom: 50px; }
         
         /* Табы */
-        .tabs { display: flex; border-bottom: 1px solid #222; position: sticky; top:0; background: #050505; z-index: 99; }
-        .tab { flex: 1; padding: 18px; text-align: center; cursor: pointer; color: #666; font-weight: 600; text-transform: uppercase; font-size: 14px; transition: 0.2s; }
-        .tab.active { color: #fff; border-bottom: 2px solid #fff; background: #111; }
+        .tabs { display: flex; background: #000; position: sticky; top:0; z-index: 100; border-bottom: 1px solid #222; }
+        .tab { flex: 1; padding: 16px; text-align: center; color: #666; font-weight: 600; text-transform: uppercase; font-size: 13px; cursor: pointer; }
+        .tab.active { color: #fff; border-bottom: 3px solid #fff; }
 
-        .content { display: none; padding: 20px; max-width: 500px; margin: 0 auto; min-height: 80vh; }
-        .content.active { display: block; animation: fadeIn 0.3s; }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; display: none; }
+        .container.active { display: flex; flex-direction: column; gap: 20px; animation: fadeIn 0.4s; }
 
-        h2 { font-weight: 200; text-align: center; margin-bottom: 25px; letter-spacing: 1px; }
+        h2 { font-weight: 300; text-align: center; margin: 10px 0 20px 0; }
+        p.hint { color: #888; text-align: center; font-size: 14px; margin-top: -10px; line-height: 1.4; }
 
-        /* Формы */
+        /* Ввод и Кнопки */
         input, textarea {
-            width: 100%; background: #1a1a1a; border: 1px solid #333; color: #fff;
-            padding: 14px; border-radius: 12px; margin-bottom: 15px; box-sizing: border-box; font-size: 16px; outline: none;
+            width: 100%; background: #1c1c1c; border: 1px solid #333; color: #fff;
+            padding: 15px; border-radius: 12px; font-size: 16px; box-sizing: border-box; outline: none;
         }
         input:focus, textarea:focus { border-color: #666; }
-        
-        button {
-            width: 100%; padding: 16px; background: #fff; color: #000;
-            border: none; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; transition: 0.2s; margin-top: 10px;
-        }
-        button:active { transform: scale(0.98); }
-        button:disabled { background: #444; color: #888; cursor: not-allowed; }
 
-        /* Загрузка */
+        /* Кнопка "Выбрать фото" - Исправлено для телефона */
         .upload-area {
-            border: 2px dashed #333; padding: 40px 20px; text-align: center; border-radius: 12px;
-            margin-bottom: 20px; cursor: pointer; color: #888; transition: 0.2s; background: #111;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #151515; border: 2px dashed #444; border-radius: 16px;
+            padding: 40px 20px; cursor: pointer; transition: 0.2s;
+            margin-bottom: 10px; /* Отступ от кнопки снизу */
         }
-        .upload-area:active { background: #222; border-color: #666; }
+        .upload-area.active { border-color: #fff; background: #222; }
+        .upload-icon { font-size: 30px; margin-bottom: 10px; }
+        
+        button.main-btn {
+            width: 100%; padding: 18px; background: #fff; color: #000;
+            border: none; border-radius: 14px; font-weight: 700; font-size: 16px;
+            cursor: pointer; margin-top: 10px; /* Отступ сверху */
+            box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+        }
+        button.main-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+        /* Выбор формата (Aspect Ratio) */
+        .format-selector { display: flex; gap: 10px; justify-content: space-between; margin-bottom: 10px; }
+        .format-btn {
+            flex: 1; background: #1c1c1c; border: 1px solid #333; border-radius: 10px;
+            padding: 12px; color: #888; cursor: pointer; font-size: 13px; text-align: center;
+        }
+        .format-btn.active { background: #333; color: #fff; border-color: #fff; }
+        .icon-rect { display: block; margin: 0 auto 5px auto; border: 2px solid currentColor; }
 
         /* Результат */
-        .result-box { margin-top: 25px; padding: 20px; background: #111; border-radius: 12px; display: none; border: 1px solid #222; }
-        .result-box img { width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        .result-img { width: 100%; border-radius: 12px; margin-top: 20px; box-shadow: 0 5px 30px rgba(0,0,0,0.5); }
+        .status-msg { text-align: center; color: #888; margin-top: 15px; font-size: 14px; }
         
-        .id-display {
-            background: #222; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 20px;
-            display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border: 1px solid #333;
-        }
-        .copy-btn { width: auto; padding: 8px 15px; font-size: 12px; margin: 0; background: #444; color: #fff; }
+        /* Скрытое поле ID (чтобы не пугать клиента) */
+        .id-group { background: #111; padding: 15px; border-radius: 10px; border: 1px solid #222; margin-bottom: 20px; }
+        .id-group label { font-size: 12px; color: #666; display: block; margin-bottom: 5px; }
+        .id-group input { background: transparent; border: none; padding: 0; color: #4f4; font-family: monospace; font-size: 14px; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
     </style>
 </head>
 <body>
 
     <div class="tabs">
-        <div class="tab active" onclick="switchTab('train')">1. Обучение</div>
-        <div class="tab" onclick="switchTab('gen')">2. Генерация</div>
+        <div class="tab active" onclick="switchTab('train')">1. Создать</div>
+        <div class="tab" onclick="switchTab('gen')">2. Рисовать</div>
     </div>
 
-    <!-- ВКЛАДКА 1: ОБУЧЕНИЕ -->
-    <div id="train" class="content active">
-        <h2>Создать Аватар</h2>
-        <p style="color:#666; text-align:center; font-size:13px; margin-bottom:20px;">
-            Нужно 5-15 фото лица крупным планом.<br>Обучение займет ~30 минут.
-        </p>
+    <!-- ЭКРАН 1: ОБУЧЕНИЕ -->
+    <div id="train" class="container active">
+        <h2>Новый Аватар</h2>
+        <p class="hint">Загрузите 5-15 фото лица.<br>Обучение займет 30 минут.</p>
 
-        <input type="text" id="modelName" placeholder="Имя модели (English)">
+        <input type="text" id="modelName" placeholder="Имя (на английском, напр. Alex)">
         
-        <label class="upload-area">
-            <span id="fileLabel">📸 Выбрать фото</span>
+        <label class="upload-area" id="dropArea">
+            <div class="upload-icon">📸</div>
+            <span id="fileLabel">Нажмите для выбора фото</span>
             <input type="file" id="photos" multiple accept="image/*" style="display:none">
         </label>
 
-        <button onclick="startTraining()" id="trainBtn">НАЧАТЬ ОБУЧЕНИЕ</button>
-        
-        <div id="trainResult" class="result-box">
-            <div style="color: #4f4; margin-bottom:10px;">✅ Обучение запущено!</div>
-            <div style="font-size:14px; color:#aaa;">Скопируйте этот ID. Через 30 минут вставьте его во вкладке "Генерация".</div>
-            
-            <div class="id-display">
-                <span id="newTuneId">...</span>
-                <button class="copy-btn" onclick="copyId()">КОПИРОВАТЬ</button>
-            </div>
-        </div>
+        <button class="main-btn" onclick="startTraining()" id="trainBtn">ЗАПУСТИТЬ ОБУЧЕНИЕ ($1.5)</button>
+        <div id="trainStatus" class="status-msg"></div>
     </div>
 
-    <!-- ВКЛАДКА 2: ГЕНЕРАЦИЯ -->
-    <div id="gen" class="content">
-        <h2>Создать Фото</h2>
+    <!-- ЭКРАН 2: ГЕНЕРАЦИЯ -->
+    <div id="gen" class="container">
+        <h2>Генерация Фото</h2>
         
-        <input type="number" id="tuneIdInput" placeholder="ID Модели (только цифры)">
-        <textarea id="promptInput" rows="4" placeholder="Промпт (Например: ohwx man portrait, space suit, cinematic lighting)"></textarea>
-        
-        <button onclick="generate()" id="genBtn">СГЕНЕРИРОВАТЬ</button>
-
-        <div id="genStatus" style="text-align:center; margin-top:20px; color:#666; font-size:14px;"></div>
-        
-        <div id="genResult" class="result-box" style="display:block; background:none; border:none; padding:0;">
-            <!-- Картинка появится здесь -->
+        <!-- Блок с ID (заполняется сам) -->
+        <div class="id-group" id="idBlock" style="display:none;">
+            <label>ID вашей модели (сохранен):</label>
+            <input type="text" id="tuneIdInput" readonly placeholder="Сначала обучите модель">
         </div>
+
+        <p class="hint" id="noIdWarning" style="color: #f55; display:none;">
+            Сначала создайте модель во вкладке "Создать"!
+        </p>
+
+        <!-- Выбор формата -->
+        <label style="color:#666; font-size:13px; margin-bottom:5px; display:block;">Формат картинки:</label>
+        <div class="format-selector">
+            <div class="format-btn active" onclick="setSize(1024, 1024, this)">
+                <span class="icon-rect" style="width:14px; height:14px;"></span>Квадрат
+            </div>
+            <div class="format-btn" onclick="setSize(768, 1024, this)">
+                <span class="icon-rect" style="width:10px; height:16px;"></span>Портрет
+            </div>
+            <div class="format-btn" onclick="setSize(1024, 768, this)">
+                <span class="icon-rect" style="width:16px; height:10px;"></span>Альбом
+            </div>
+        </div>
+
+        <textarea id="promptInput" rows="4" placeholder="Опишите фото (на англ). Например: ohwx man in cyberpunk city, neon lights"></textarea>
+        
+        <button class="main-btn" onclick="generate()" id="genBtn">СГЕНЕРИРОВАТЬ</button>
+        <div id="genStatus" class="status-msg"></div>
+        <div id="gallery"></div>
     </div>
 
     <script>
-        function switchTab(tabName) {
+        // Текущие размеры (по умолчанию квадрат)
+        let currentW = 1024;
+        let currentH = 1024;
+
+        // ПРИ ЗАГРУЗКЕ: Проверяем, есть ли сохраненный ID
+        window.onload = function() {
+            const savedId = localStorage.getItem('my_astria_id');
+            if(savedId) {
+                document.getElementById('tuneIdInput').value = savedId;
+                document.getElementById('idBlock').style.display = 'block';
+            } else {
+                document.getElementById('noIdWarning').style.display = 'block';
+            }
+        }
+
+        function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
             
-            if(tabName === 'train') {
+            if(tab === 'train') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('train').classList.add('active');
             } else {
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 document.getElementById('gen').classList.add('active');
+                // При переходе на генерацию, еще раз проверим ID
+                const savedId = localStorage.getItem('my_astria_id');
+                if(savedId) {
+                    document.getElementById('tuneIdInput').value = savedId;
+                    document.getElementById('idBlock').style.display = 'block';
+                    document.getElementById('noIdWarning').style.display = 'none';
+                }
             }
+        }
+
+        function setSize(w, h, btn) {
+            currentW = w;
+            currentH = h;
+            document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
         async function startTraining() {
             const files = document.getElementById('photos').files;
             const name = document.getElementById('modelName').value;
             const btn = document.getElementById('trainBtn');
+            const status = document.getElementById('trainStatus');
             
-            if(files.length < 4) return alert('Выберите минимум 4 фото!');
+            if(files.length < 4) return alert('Нужно минимум 4 фото!');
             
             btn.disabled = true;
-            btn.innerText = "Загрузка фото (ждите)...";
+            btn.innerText = "Загрузка...";
+            status.innerText = "Не закрывайте сайт, файлы отправляются...";
 
             const formData = new FormData();
             formData.append('modelName', name);
@@ -134,19 +187,21 @@
                 const data = await res.json();
                 
                 if(data.success) {
-                    document.getElementById('trainResult').style.display = 'block';
-                    document.getElementById('newTuneId').innerText = data.tune_id;
-                    document.getElementById('tuneIdInput').value = data.tune_id; // Автозаполнение
-                    btn.innerText = "УСПЕШНО";
+                    // АВТО-СОХРАНЕНИЕ ID
+                    localStorage.setItem('my_astria_id', data.tune_id);
+                    
+                    status.innerHTML = `<span style="color:#4f4">✅ Успешно! ID: ${data.tune_id}</span><br>Обучение началось. Приходите через 30 минут во вкладку "Рисовать". Ваш ID сохранен.`;
+                    btn.innerText = "ОБУЧЕНИЕ ЗАПУЩЕНО";
                 } else {
-                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                    let err = data.error;
+                    if(data.details) err += " " + JSON.stringify(data.details);
+                    alert("Ошибка: " + err);
                     btn.disabled = false;
-                    btn.innerText = "НАЧАТЬ ОБУЧЕНИЕ";
+                    btn.innerText = "ЗАПУСТИТЬ ОБУЧЕНИЕ";
                 }
             } catch(e) {
-                alert('Ошибка сети или сервер не отвечает');
+                alert("Ошибка сети");
                 btn.disabled = false;
-                btn.innerText = "ПОПРОБОВАТЬ СНОВА";
             }
         }
 
@@ -155,30 +210,37 @@
             const tuneId = document.getElementById('tuneIdInput').value;
             const btn = document.getElementById('genBtn');
             const status = document.getElementById('genStatus');
-            const resDiv = document.getElementById('genResult');
+            const gallery = document.getElementById('gallery');
 
-            if(!prompt || !tuneId) return alert('Введите ID модели и описание!');
+            if(!tuneId) return alert('Нет ID модели. Сначала обучите её.');
+            if(!prompt) return alert('Введите описание!');
 
             btn.disabled = true;
-            btn.innerText = "ДУМАЮ...";
-            status.innerText = "Генерация... Это может занять до 1 минуты.";
-            resDiv.innerHTML = '';
+            btn.innerText = "РИСУЮ...";
+            status.innerText = "Генерация... Ждите ~30 сек.";
+            gallery.innerHTML = '';
 
             try {
                 const res = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt, tune_id: tuneId })
+                    body: JSON.stringify({ 
+                        prompt, 
+                        tune_id: tuneId,
+                        w: currentW, 
+                        h: currentH
+                    })
                 });
                 const data = await res.json();
 
                 if(data.success) {
                     const img = document.createElement('img');
                     img.src = data.image;
-                    resDiv.appendChild(img);
+                    img.className = 'result-img';
+                    gallery.appendChild(img);
                     status.innerText = "Готово!";
                 } else {
-                    status.innerText = "Ошибка: " + (data.error || 'Проверьте ID модели');
+                    status.innerText = "Ошибка: " + data.error;
                 }
             } catch(e) {
                 status.innerText = "Ошибка соединения";
@@ -188,15 +250,13 @@
             }
         }
 
+        // Красивое отображение выбранных файлов
         document.getElementById('photos').addEventListener('change', function() {
-            if(this.files.length > 0) document.getElementById('fileLabel').innerText = `✅ Выбрано: ${this.files.length}`;
+            if(this.files.length > 0) {
+                document.getElementById('fileLabel').innerText = `✅ Выбрано фото: ${this.files.length}`;
+                document.getElementById('dropArea').classList.add('active');
+            }
         });
-
-        function copyId() {
-            const id = document.getElementById('newTuneId').innerText;
-            navigator.clipboard.writeText(id);
-            alert('ID скопирован!');
-        }
     </script>
 </body>
 </html>
