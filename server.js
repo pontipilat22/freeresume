@@ -1,74 +1,76 @@
 const express = require('express');
 const axios = require('axios');
+const multer = require('multer');
+const FormData = require('form-data');
 const app = express();
 
-// Railway автоматически выдаст порт, либо будет 3000
 const PORT = process.env.PORT || 3000;
+const ASTRIA_API_KEY = process.env.ASTRIA_API_KEY;
+
+// Настройка Multer (храним файлы в оперативной памяти временно)
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.static('public'));
-app.use(express.json());
 
-// Настройки берутся из переменных окружения Railway (СЕКРЕТНО)
-const ASTRIA_API_KEY = process.env.ASTRIA_API_KEY;
-const TUNE_ID = process.env.ASTRIA_TUNE_ID; 
-
-app.post('/api/generate', async (req, res) => {
-    const { prompt } = req.body;
-
-    if (!ASTRIA_API_KEY || !TUNE_ID) {
-        return res.status(500).json({ error: 'Ошибка конфигурации сервера (нет ключей)' });
+// Эндпоинт для запуска тренировки
+// upload.array('photos', 20) означает, что принимаем до 20 файлов в поле 'photos'
+app.post('/api/train', upload.array('photos', 20), async (req, res) => {
+    
+    // Проверка ключа
+    if (!ASTRIA_API_KEY) return res.status(500).json({ error: 'Нет API ключа на сервере' });
+    
+    // Проверка файлов
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'Загрузите хотя бы 4 фото.' });
     }
 
+    const { email, modelName } = req.body; // Получаем имя и почту (если нужно)
+
     try {
-        console.log('Отправка запроса в Astria...');
+        console.log(`Начинаю загрузку ${req.files.length} фото для модели: ${modelName}`);
+
+        // 1. Формируем данные для Astria
+        // Astria требует multipart/form-data
+        const form = new FormData();
         
-        // 1. Создаем задачу генерации (Flux LoRA)
-        const createRes = await axios.post(
-            `https://api.astria.ai/tunes/${TUNE_ID}/prompts`,
-            {
-                prompt: {
-                    text: prompt,
-                    // Можно добавить super_resolution: true и другие параметры
-                }
+        // Обязательные настройки для Flux
+        form.append('tune[title]', modelName || 'My Flux Model');
+        form.append('tune[name]', 'person'); // Class name
+        form.append('tune[branch]', 'flux1'); // ВАЖНО: выбираем Flux
+        form.append('tune[token]', 'ohwx');   // Триггер слово (обычно ohwx для Astria)
+        form.append('tune[model_type]', 'lora');
+        
+        // Добавляем сами картинки
+        req.files.forEach(file => {
+            form.append('tune[images][]', file.buffer, file.originalname);
+        });
+
+        // 2. Отправляем в Astria
+        const response = await axios.post('https://api.astria.ai/tunes', form, {
+            headers: {
+                'Authorization': `Bearer ${ASTRIA_API_KEY}`,
+                ...form.getHeaders() // Заголовки формы (границы файлов)
             },
-            {
-                headers: { 'Authorization': `Bearer ${ASTRIA_API_KEY}` }
-            }
-        );
+            maxBodyLength: Infinity, // Разрешаем большие загрузки
+            maxContentLength: Infinity
+        });
 
-        // Получаем ID задачи, чтобы проверять статус
-        // В разных версиях API Astria это может быть uid или id
-        const promptId = createRes.data.uid || createRes.data.id;
+        // Успех!
+        console.log('Ответ Astria:', response.data);
         
-        // 2. Ждем результат (Polling)
-        // Railway имеет таймауты, поэтому мы ждем максимум 60 сек
-        let imageUrl = null;
-        let attempts = 0;
-        
-        while (attempts < 30) {
-            await new Promise(r => setTimeout(r, 2000)); // ждать 2 сек
-            
-            const checkRes = await axios.get(
-                `https://api.astria.ai/tunes/${TUNE_ID}/prompts/${promptId}`,
-                { headers: { 'Authorization': `Bearer ${ASTRIA_API_KEY}` } }
-            );
-
-            if (checkRes.data.images && checkRes.data.images.length > 0) {
-                imageUrl = checkRes.data.images[0]; // Берем первое фото
-                break;
-            }
-            attempts++;
-        }
-
-        if (imageUrl) {
-            res.json({ success: true, image: imageUrl });
-        } else {
-            res.status(408).json({ error: 'Генерация заняла слишком много времени. Попробуйте обновить галерею позже.' });
-        }
+        // Возвращаем клиенту ID новой модели
+        res.json({ 
+            success: true, 
+            tune_id: response.data.id, 
+            message: 'Обучение запущено! Это займет 20-40 минут.' 
+        });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Ошибка при общении с Astria AI' });
+        console.error('Ошибка Astria:', error.response ? error.response.data : error.message);
+        res.status(500).json({ 
+            error: 'Ошибка при запуске обучения. Проверьте фото или баланс.',
+            details: error.response ? error.response.data : null
+        });
     }
 });
 
