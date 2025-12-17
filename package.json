@@ -1,5 +1,5 @@
 {
-  "name": "astria-flux-trainer",
+  "name": "astria-studio-flux",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
